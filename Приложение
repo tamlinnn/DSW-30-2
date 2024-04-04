@@ -1,0 +1,49 @@
+// Импорт библиотеки Avro
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+
+// Чтение Avro-файла
+try (DataFileReader<GenericRecord> reader = new DataFileReader<>(new File("path/to/your/avro/file"), new GenericDatumReader<>())) {
+    while (reader.hasNext()) {
+        GenericRecord record = reader.next();
+        // Преобразование GenericRecord в нужный вам класс
+        Purchase purchase = convertToPurchase(record);
+        Product product = convertToProduct(record);
+        
+        // Теперь вы можете работать с объектами Purchase и Product
+        sendMessageToKafka(purchase, product);
+    }
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+// Методы для преобразования GenericRecord в Purchase и Product
+private Purchase convertToPurchase(GenericRecord record) {
+    // Здесь должен быть код для преобразования GenericRecord в Purchase
+    // Например, если у вас есть поле quantity и field price, вы можете сделать так:
+    int quantity = (int) record.get("quantity");
+    double price = (double) record.get("price");
+    return new Purchase(quantity, price);
+}
+
+private Product convertToProduct(GenericRecord record) {
+    // Здесь должен быть код для преобразования GenericRecord в Product
+    // Например, если у вас есть поле name и field id, вы можете сделать так:
+    String name = (String) record.get("name");
+    long id = (long) record.get("id");
+    return new Product(name, id);
+}
+
+// Метод для отправки сообщения в Kafka
+private void sendMessageToKafka(Purchase purchase, Product product) {
+    // Здесь должен быть код для отправки сообщения в Kafka
+    // Например, если у вас есть ProducerConfig и Topic, вы можете сделать так:
+    ProducerConfig producerConfig = new ProducerConfig();
+    Topic topic = new Topic();
+    
+    // Отправка сообщения в Kafka
+    Producer producer = new Producer(producerConfig);
+    producer.send(topic, purchase, product);
+}
