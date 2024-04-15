@@ -1,8 +1,3 @@
-import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-
 class Purchase {
     private final int quantity;
     private final double price;
@@ -93,7 +88,7 @@ class Consumer {
 public class Main {
     public static void main(String[] args) {
         String avroFilePath = "path/to/your/avro/file";
-        Schema schema = null; 
+        Schema schema = null;
         Consumer consumer = new Consumer(schema);
         consumer.readAvroFile(avroFilePath);
     }
