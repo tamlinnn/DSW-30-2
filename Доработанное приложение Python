@@ -1,0 +1,115 @@
+pip install confluent-kafka configparser
+pip install psycopg2-binary
+pip install opencv-python
+import avro.schema
+from avro.datafile import DataFileReader, DataFileWriter
+from avro.io import DatumReader, DatumWriter
+import time
+import requests
+
+
+# Шаг 1: Определите схемы Avro
+purchase_schema = avro.schema.Parse("""
+{
+  "type": "record",
+  "name": "Purchase",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "quantity", "type": "int"},
+    {"name": "product", "type": "string"}
+  ]
+}
+""")
+
+product_schema = avro.schema.Parse("""
+{
+  "type": "record",
+  "name": "Product",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "price", "type": "float"}
+  ]
+}
+""")
+
+# Шаг 2: Чтение данных из Avro-файлов
+def read_avro_files():
+    with open('purchases.avro', 'rb') as file:
+        reader = DataFileReader(file, DatumReader(), purchase_schema)
+        purchases = []
+        for purchase in reader:
+            purchases.append({'id': purchase.id, 'quantity': purchase.quantity, 'product': purchase.product})
+        return purchases
+
+    with open('products.avro', 'rb') as file:
+        reader = DataFileReader(file, DatumReader(), product_schema)
+        products = {}
+        for product in reader:
+            products[product.id] = {'id': product.id, 'price': product.price}
+        return products
+
+# Шаг 3: Вычисление суммы денег за последнюю минуту
+def calculate_money_sum(purchases, products):
+    current_time = int(time.time())
+    last_minute_purchases = [purchase for purchase in purchases if purchase['timestamp'] >= current_time - 60 and purchase['timestamp'] <= current_time]
+    money_sums = {product: 0 for product in set([purchase['product'] for purchase in last_minute_purchases])}
+    
+    for purchase in last_minute_purchases:
+        product_id = purchase['product']
+        quantity = purchase['quantity']
+        price = products[product_id]['price']
+        money_sums[product_id] += quantity  *  price
+        
+    return money_sums
+
+# Шаг 4: Проверка условия
+def check_condition(money_sums):
+    for sum in money_sums.values():
+        if sum > 3000:
+            send_alert(sum)
+
+# Шаг 5: Отправка уведомления
+def send_alert(sum):
+    # Здесь должен быть код для отправки уведомления. Например, отправка HTTP-запроса.
+    print(f"Alert: Sum of money earned for product is {sum}")
+def connect_kafka(connection_address: str):
+    p = Producer({'bootstrap.servers': connection_address,
+                    'message.max.bytes': 20971520
+                  }
+                 )
+    return p
+
+def delivery_report(err, msg):
+    if err is not None:
+        print('Message delivery failed: {}'.format(err))
+    else:
+        print('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+
+def string_conversion(list_could: list):
+    json_list={list_could[0].strip(): dict([pair for pair in enumerate(list_could[1:13])])}
+    return json_list
+
+
+
+def main():
+    p=connect_kafka("localhost:9092")
+    topic_name= "atattata"
+
+    row = f"Alert: Sum of money earned for product is {sum}"
+            p.produce(topic=topic_name, key=str(uuid4()).encode('utf-8'), 
+                      value=bytes(json.dumps(string_conversion(row)), 'utf-8'),
+                      callback=delivery_report)
+    p.flush()
+
+if __name__ == '__main__':
+    main()
+
+# Главный метод
+def main():
+    purchases = read_avro_files()
+    products = read_avro_files()
+    money_sums = calculate_money_sum(purchases, products)
+    check_condition(money_sums)
+
+if __name__ == "__main__":
+    main()
