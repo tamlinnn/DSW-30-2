@@ -1,11 +1,23 @@
 pip install confluent-kafka configparser
 pip install psycopg2-binary
 pip install opencv-python
+from confluent_kafka import Consumer
+import uuid
+import json
 import avro.schema
 from avro.datafile import DataFileReader, DataFileWriter
 from avro.io import DatumReader, DatumWriter
 import time
 import requests
+import csv 
+import json
+import cv2
+import cv2 as cv
+import base64
+import os
+
+from uuid import uuid4
+from confluent_kafka import Producer
 
 
 # Шаг 1: Определите схемы Avro
@@ -69,9 +81,6 @@ def check_condition(money_sums):
             send_alert(sum)
 
 # Шаг 5: Отправка уведомления
-def send_alert(sum):
-    # Здесь должен быть код для отправки уведомления. Например, отправка HTTP-запроса.
-    print(f"Alert: Sum of money earned for product is {sum}")
 def connect_kafka(connection_address: str):
     p = Producer({'bootstrap.servers': connection_address,
                     'message.max.bytes': 20971520
@@ -89,20 +98,17 @@ def string_conversion(list_could: list):
     json_list={list_could[0].strip(): dict([pair for pair in enumerate(list_could[1:13])])}
     return json_list
 
-
-
-def main():
+def send_alert(sum):
     p=connect_kafka("localhost:9092")
-    topic_name= "atattata"
+    topic_name= "QuantityProduct"
 
-    row = f"Alert: Sum of money earned for product is {sum}"
-            p.produce(topic=topic_name, key=str(uuid4()).encode('utf-8'), 
-                      value=bytes(json.dumps(string_conversion(row)), 'utf-8'),
-                      callback=delivery_report)
+    p.produce(topic=topic_name, key=str(uuid4()).encode('utf-8'), 
+      value=bytes(json.dumps(string_conversion(f"Alert: Sum of money earned for product is {sum}")), 'utf-8'),
+      callback=delivery_report)
     p.flush()
 
 if __name__ == '__main__':
-    main()
+    send_alert(sum)
 
 # Главный метод
 def main():
@@ -113,3 +119,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
