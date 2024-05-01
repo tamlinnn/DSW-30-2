@@ -1,50 +1,61 @@
+import fastavro
 import avro.schema
 from avro.datafile import DataFileReader, DataFileWriter
 from avro.io import DatumReader, DatumWriter
 import time
 import requests
+import csv 
+import json
 
-# Шаг 1: Определите схемы Avro
-purchase_schema = avro.schema.Parse("""
+from uuid import uuid4
+from confluent_kafka import Producer
+
+
+# Определите схемы Avro
+purchase_schema = avro.schema.parse("""
 {
+  "namespace": "example.avro",
   "type": "record",
   "name": "Purchase",
   "fields": [
-    {"name": "id", "type": "string"},
-    {"name": "quantity", "type": "int"},
-    {"name": "product", "type": "string"}
+    {"name": "timestamp", "type": "long", "default": sys.maxsize},
+    {"name": "id", "type": "long"},
+    {"name": "quantity", "type": "long"},
+    {"name": "productid", "type": "long"}
   ]
 }
 """)
 
-product_schema = avro.schema.Parse("""
+product_schema = avro.schema.parse("""
 {
   "type": "record",
   "name": "Product",
   "fields": [
-    {"name": "id", "type": "string"},
-    {"name": "price", "type": "float"}
+    {"name": "id", "type": "long"},
+    {"name": "price", "type": "double"}
   ]
 }
 """)
 
-# Шаг 2: Чтение данных из Avro-файлов
+# Чтение данных из Avro-файлов
 def read_avro_files():
-    with open('purchases.avro', 'rb') as file:
+    
+    with open('purchase.avro', 'rb') as file:
         reader = DataFileReader(file, DatumReader(), purchase_schema)
+        schema = reader.purchase_schema
         purchases = []
         for purchase in reader:
             purchases.append({'id': purchase.id, 'quantity': purchase.quantity, 'product': purchase.product})
-        return purchases
+        return purchases  
 
-    with open('products.avro', 'rb') as file:
+    with open('product.avro', 'rb') as file:
         reader = DataFileReader(file, DatumReader(), product_schema)
         products = {}
         for product in reader:
             products[product.id] = {'id': product.id, 'price': product.price}
         return products
 
-# Шаг 3: Вычисление суммы денег за последнюю минуту
+# Вычисление суммы денег за последнюю минуту
 def calculate_money_sum(purchases, products):
     current_time = int(time.time())
     last_minute_purchases = [purchase for purchase in purchases if purchase['timestamp'] >= current_time - 60 and purchase['timestamp'] <= current_time]
@@ -58,16 +69,40 @@ def calculate_money_sum(purchases, products):
         
     return money_sums
 
-# Шаг 4: Проверка условия
+# Проверка условия
 def check_condition(money_sums):
     for sum in money_sums.values():
         if sum > 3000:
             send_alert(sum)
 
-# Шаг 5: Отправка уведомления
+# Отправка уведомления
+def connect_kafka(connection_address: str):
+    p = Producer({'bootstrap.servers': connection_address,
+                    'message.max.bytes': 20971520
+                  }
+                 )
+    return p
+
+def delivery_report(err, msg):
+    if err is not None:
+        print('Message delivery failed: {}'.format(err))
+    else:
+        print('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+
+def string_conversion(list_could: list):
+    json_list={list_could[0].strip(): dict([pair for pair in enumerate(list_could[1:13])])}
+    return json_list
+
 def send_alert(sum):
-    # Здесь должен быть код для отправки уведомления. Например, отправка HTTP-запроса.
-    print(f"Alert: Sum of money earned for product is {sum}")
+    p=connect_kafka("localhost:9092")
+    topic_name= "subject"
+    p.produce(topic=topic_name, key=str(uuid4()).encode('utf-8'), 
+        value=bytes(json.dumps(string_conversion(sum)), 'utf-8'),
+        callback=delivery_report)
+    p.flush()
+    
+# Проверка отправки уведомления. 
+print(f"Сообщение: Сумма денег по продукту {sum}")
 
 # Главный метод
 def main():
@@ -78,3 +113,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
