@@ -18,7 +18,7 @@ purchase_schema = avro.schema.parse("""
   "type": "record",
   "name": "Purchase",
   "fields": [
-    {"name": "timestamp", "type": "long", "default": sys.maxsize},
+    {"name": "timestamp", "type": "long", "default": "MAXVALUE"},
     {"name": "id", "type": "long"},
     {"name": "quantity", "type": "long"},
     {"name": "productid", "type": "long"}
