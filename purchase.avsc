@@ -4,6 +4,13 @@
   "type": "record",
   "fields": [
     {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "default": "MAXVALUE"
+      }
+    },
+    {
       "name": "id",
       "type": {
         "type": "long",
